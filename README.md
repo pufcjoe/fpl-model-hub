@@ -46,6 +46,31 @@ Blend weights 45-70% are statistically indistinguishable (a plateau, not a spike
 so the squad builder is not driving the outcome. Raw run data in model/*.csv.
 
 
+## How far from the achievable ceiling? (oracle study)
+An oracle knowing each player's TRUE season rate but nothing week-to-week is the
+best any preseason model could ever be. Same sample, 25/26:
+
+| | RMSE | MAE | R2 |
+|---|---|---|---|
+| ORACLE: perfect season rate (**preseason ceiling**) | 2.374 | 1.509 | +0.232 |
+| ORACLE: + perfect availability each GW | 2.125 | 1.177 | +0.385 |
+| ORACLE: + exact minutes | 2.021 | 1.108 | +0.444 |
+| ORACLE: + knows the clean sheet | 1.791 | 0.937 | +0.563 |
+| **v6.2 calibrated (shipped)** | **2.632** | 1.727 | **+0.056** |
+| v6.1 raw | 2.663 | 1.687 | +0.034 |
+| naive: constant mean | 2.709 | 1.888 | 0.000 |
+
+Signal captured vs the preseason ceiling: raw 14% -> calibrated **23%**.
+
+Where the remaining headroom lives (RMSE gain from perfect knowledge of each):
+knowing who plays at all **+0.249**, knowing the clean sheet **+0.229**,
+exact minutes **+0.105**. Minutes/availability is the single biggest
+improvable lever for any preseason model.
+
+Calibration: predictions are shrunk toward the mean (lambda=0.60, fitted on the
+25/26 backtest). Spearman(raw, calibrated) = 1.0000, so squad selection is
+completely unchanged — this only makes the displayed xP numbers honest.
+
 ## Per-gameweek accuracy (identical sample, n=14,172, 25/26)
 | Model | RMSE | MAE | R2 |
 |---|---|---|---|
