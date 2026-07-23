@@ -1,0 +1,54 @@
+{
+ "feats": [
+  "price",
+  "sel_pct",
+  "pts",
+  "mins",
+  "start_rate",
+  "ppg_prev",
+  "xgi90",
+  "cs90",
+  "bonus90",
+  "tpp",
+  "newcomer",
+  "is_GK",
+  "is_DEF",
+  "is_MID",
+  "is_FWD"
+ ],
+ "ridge_coef": [
+  6.5501222511568065,
+  1.2654635532166467,
+  -0.03661507589795865,
+  0.021451109105806616,
+  -0.2800189522592888,
+  0.8452980267952934,
+  -0.7397918372567278,
+  23.31369201738268,
+  -3.525500342197392,
+  -0.004779706612622187,
+  10.836763392866885,
+  -5.453175505579748,
+  1.3818741551734366,
+  4.059909734075824,
+  0.01139161632725354
+ ],
+ "ridge_intercept": -11.777250026978287,
+ "method": "preseason: 70% trained-ML rank + 30% structural rank, quantile-mapped to ML points scale",
+ "validation": {
+  "squad_actual_pts": {
+   "ceiling": 2141,
+   "last_season_baseline": 1405,
+   "structural": 1397,
+   "trained_ml": 1482,
+   "blend70": 1572
+  },
+  "reverse_direction": {
+   "ceiling": 2188,
+   "last_season_baseline": 1574,
+   "structural": 1702,
+   "trained_ml": 1891,
+   "blend70": 1855
+  }
+ }
+}
