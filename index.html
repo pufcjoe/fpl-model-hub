@@ -158,7 +158,7 @@
   </div>
   <div class="view on" id="v-draft">
     <div class="budget" id="budgetBox">
-      <div class="budget-row"><span>SPENT <b id="spent">—</b></span><span>XI xP GW1–6 <b id="xitotal" style="color:var(--amber)">—</b></span><span>BANK <b id="remain">—</b></span></div>
+      <div class="budget-row"><span>SPENT <b id="spent">—</b></span><span>XI xP <span id="xiLabel" style="font-size:9px">next 6</span> <b id="xitotal" style="color:var(--amber)">—</b></span><span>BANK <b id="remain">—</b></span></div>
       <div class="bar"><i id="barFill"></i></div>
     </div>
     <div class="toolrow">
@@ -216,7 +216,7 @@
   <div class="d-search">
     <input id="dQ" placeholder="Search player or club..." oninput="renderList()">
     <select id="dSort" onchange="renderList()">
-      <option value="xp6">xP 1–6</option><option value="xp1">xP GW1</option>
+      <option value="xp6">xP next 6 GWs</option><option value="xp1">xP next GW only</option>
       <option value="val">value</option><option value="p">price</option><option value="sel">owned %</option>
     </select>
   </div>
@@ -420,7 +420,7 @@ function slotEl(s,idx){
   const flag=STATUS_FLAG[d.st]?' <span style="color:var(--red)">'+STATUS_FLAG[d.st]+'</span>':'';
   el.innerHTML='<div class="shirt"><span class="lockpin">🔒</span><span class="band c">C</span><span class="band v">V</span>'+
     '<div class="pos-tag">'+d.pos+' · '+d.t+'</div><div class="pname">'+esc(d.n)+'</div>'+
-    '<div class="pprice">£'+d.p.toFixed(1)+'</div><div class="pxp">xP '+hxp(d,NEXT_GW,6).toFixed(1)+flag+'</div>'+
+    '<div class="pprice">£'+d.p.toFixed(1)+'</div><div class="pxp">6GW '+hxp(d,NEXT_GW,6).toFixed(1)+' · '+d.gw[NEXT_GW-1].toFixed(1)+'/gw'+flag+'</div>'+
     '<div class="pfix">'+fixStr(d,3)+'</div></div>';
   el.onclick=()=>openDrawer(idx);return el;
 }
@@ -428,7 +428,7 @@ function openDrawer(idx){
   activeIdx=idx;
   const s=SQUAD[idx],cur=s.pid?byId[s.pid]:null;
   document.getElementById('dTitle').textContent=(s.xi?'':'Bench · ')+s.pos+' — decide this slot';
-  document.getElementById('dSub').textContent=(cur?('Current: '+cur.n+' £'+cur.p.toFixed(1)+'m · xP '+hxp(cur,NEXT_GW,6).toFixed(1)):'Empty slot')+' · bank £'+(BUDGET-cost()).toFixed(1)+'m';
+  document.getElementById('dSub').textContent=(cur?('Current: '+cur.n+' £'+cur.p.toFixed(1)+'m · GW'+NEXT_GW+' '+cur.gw[NEXT_GW-1].toFixed(1)+' xP · next 6 '+hxp(cur,NEXT_GW,6).toFixed(1)):'Empty slot')+' · bank £'+(BUDGET-cost()).toFixed(1)+'m';
   const acts=document.getElementById('dActions');acts.innerHTML='';
   if(cur){
     acts.appendChild(chip('Remove ✕',false,()=>{
@@ -449,6 +449,8 @@ function openDrawer(idx){
     render();closeDrawer();}));
   document.getElementById('dQ').value='';
   document.getElementById('dSort').value='xp6';
+  const so=document.getElementById('dSort').options;
+  so[0].text='xP next 6 GWs';so[1].text='xP GW'+NEXT_GW+' only';
   renderList();
   document.body.classList.add('open');
 }
@@ -477,7 +479,9 @@ function renderList(){
     d.innerHTML='<span class="o-price">£'+o.p.toFixed(1)+'</span>'+
       '<span class="o-main"><span class="o-name">'+esc(o.n)+flag+luckB+momB+' <small>'+o.t+' · '+o.sel+'%'+(o.pen?' · PENS':'')+'</small></span>'+
       '<span class="o-note">'+fixStr(o,6)+' · 25/26: '+o.lsp+'pts/'+o.lsm+'min'+(!clubOK?' · CLUB FULL':'')+'</span></span>'+
-      '<span class="o-xp">xP '+hxp(o,NEXT_GW,6).toFixed(1)+'</span>';
+      '<span class="o-xp">'+(sort==='xp1'
+        ?('<span style="font-size:8px;color:var(--dim)">GW'+NEXT_GW+'</span><br>'+o.gw[NEXT_GW-1].toFixed(1))
+        :('<span style="font-size:8px;color:var(--dim)">6GW</span><br>'+hxp(o,NEXT_GW,6).toFixed(1)))+'</span>';
     d.onclick=()=>{SQUAD[activeIdx].pid=o.id;
       if(cur&&capId===cur.id)capId=o.id;
       if(cur&&viceId===cur.id)viceId=o.id;
