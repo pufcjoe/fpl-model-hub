@@ -34,21 +34,26 @@
   0.01139161632725354
  ],
  "ridge_intercept": -11.777250026978287,
- "method": "preseason: 70% trained-ML rank + 30% structural rank, quantile-mapped to ML points scale",
+ "blend_weight_ml": 0.6,
  "validation": {
-  "squad_actual_pts": {
-   "ceiling": 2141,
-   "last_season_baseline": 1405,
-   "structural": 1397,
-   "trained_ml": 1482,
-   "blend70": 1572
+  "design": "repeated 5-fold CV (out-of-fold preds) x 2 test seasons, squad built preseason then scored on ACTUAL season points",
+  "reps": "12 + 10 + 20 across three studies",
+  "squad_actual_points_mean": {
+   "ceiling": 2164,
+   "blend60": 1662,
+   "blend70": 1655,
+   "ml_only": 1604,
+   "structural_only": 1550,
+   "last_season_baseline": 1490,
+   "gbm_only": 1477,
+   "price_only": 1174
   },
-  "reverse_direction": {
-   "ceiling": 2188,
-   "last_season_baseline": 1574,
-   "structural": 1702,
-   "trained_ml": 1891,
-   "blend70": 1855
-  }
+  "paired_vs_structural": {
+   "blend60": "+109 pts, t=4.22, wins 20/24",
+   "ml_only": "+54, t=2.68, wins 17/24"
+  },
+  "plateau": "45-70% ML weight statistically indistinguishable; 60% chosen as plateau centre",
+  "builder_sensitivity": "candidate pool 150/180/240 -> identical results",
+  "note": "structural model beats last-season-points baseline on average (1550 vs 1490) but loses in 1 of 2 test seasons"
  }
 }

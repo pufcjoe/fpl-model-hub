@@ -24,7 +24,28 @@ model/model_export.json  the trained model: 14 features, coefficients, holdout m
   R2 0.131** — inside the fplreview "perfect model" band every window.
   GradientBoosting scored identically; the portable ridge ships.
 
-## Retest results (head-to-head, identical 25/26 samples, n=13,713)
+## Validation: repeated cross-validated squad backtest
+Design: 5-fold CV producing out-of-fold preseason predictions, x2 test seasons,
+x42 total repetitions across three studies. For each run a legal GBP100m squad is
+built from the model's preseason projections, then scored on ACTUAL season points.
+
+| Preseason model | Squad actual pts (mean) |
+|---|---|
+| Perfect hindsight (ceiling) | 2164 |
+| **Blend 60% ML / 40% structural (SHIPPED)** | **1662** |
+| Blend 70/30 | 1655 |
+| Trained ML alone | 1604 |
+| Structural alone | 1550 |
+| Baseline: last season's points | 1490 |
+| GBM alone | 1477 |
+| Baseline: price | 1174 |
+
+Paired vs structural: blend60 **+109 pts, t=4.22, wins 20/24 runs**.
+Blend weights 45-70% are statistically indistinguishable (a plateau, not a spike);
+60% chosen as its centre. Candidate-pool size 150/180/240 gives identical results,
+so the squad builder is not driving the outcome. Raw run data in model/*.csv.
+
+## Retest results (in-season, head-to-head, n=13,713)
 | Model | RMSE | MAE | R2 |
 |---|---|---|---|
 | ML (frozen pre-25/26) | 2.735 | 1.878 | 0.125 |
