@@ -45,6 +45,32 @@ Blend weights 45-70% are statistically indistinguishable (a plateau, not a spike
 60% chosen as its centre. Candidate-pool size 150/180/240 gives identical results,
 so the squad builder is not driving the outcome. Raw run data in model/*.csv.
 
+
+## Per-gameweek accuracy (identical sample, n=14,172, 25/26)
+| Model | RMSE | MAE | R2 |
+|---|---|---|---|
+| **In-season ML (form features)** | **2.722** | **1.856** | **+0.125** |
+| naive: constant mean | 2.909 | 2.102 | 0.000 |
+| preseason: trained ML alone | 2.965 | 1.930 | -0.039 |
+| **preseason v6.1 (shipped)** | 2.970 | 1.934 | -0.042 |
+| preseason: structural v4.3 | 3.145 | 1.999 | -0.168 |
+| preseason: last-season baseline | 3.193 | 2.097 | -0.204 |
+| *perfect-model band (fplreview)* | *2.7-2.9* | *1.9-2.0* | *0.12-0.17* |
+
+Read this correctly: **only the in-season model belongs in the perfect-model band.**
+Every preseason model scores negative R2 per-gameweek -- worse than predicting the
+mean for everyone. That is expected, not a defect: a preseason projection says
+"Haaland averages 6/GW", and RMSE punishes it every week he blanks. Preseason
+models solve a *ranking over a season* problem, which the squad backtest measures
+(v6.1 wins there by +109 pts, t=4.22). Among preseason models v6.1 is still clearly
+the best on this metric too (2.970 vs 3.145 structural vs 3.193 last-season).
+
+This is exactly why the app switches engines: baked preseason projections for GW1-2,
+then the in-season ML takes over point levels from GW3 once form features exist.
+
+NOTE on earlier figures: RMSE numbers quoted before this table used different sample
+filters and are NOT comparable to each other. Only same-sample comparisons count.
+
 ## Retest results (in-season, head-to-head, n=13,713)
 | Model | RMSE | MAE | R2 |
 |---|---|---|---|
