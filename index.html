@@ -320,12 +320,25 @@ function runOptimise(g0,n,lockedSlots){
   }
   return best;
 }
+function capObj(xi,g0,n){let s=0,mx=0;xi.forEach(p=>{const v=hxp(p,g0,n);s+=v;if(v>mx)mx=v;});return s+mx;}
 function optimise(){
-  const best=runOptimise(NEXT_GW,6,SQUAD.filter(s=>s.lock&&s.pid));
+  // multi-seed + captain-aware: free solve, then top-3 premiums force-seeded; keep the
+  // captain-adjusted best (sum + best player doubled). Fixes greedy local optima that
+  // structurally excluded premium captains like Haaland.
+  const locks=SQUAD.filter(s=>s.lock&&s.pid);
+  const lockedIds=new Set(locks.map(s=>s.pid));
+  let best=runOptimise(NEXT_GW,6,locks);
+  if(best)best.cadj=capObj(best.xi,NEXT_GW,6);
+  const prems=DB.filter(p=>p.p>=10&&p.st==='a'&&!lockedIds.has(p.id)).sort((a,b)=>hxp(b,NEXT_GW,6)-hxp(a,NEXT_GW,6)).slice(0,3);
+  for(const pr of prems){
+    const trial=runOptimise(NEXT_GW,6,locks.concat([{pid:pr.id,pos:pr.pos,xi:true,lock:true}]));
+    if(trial){trial.cadj=capObj(trial.xi,NEXT_GW,6);
+      if(!best||trial.cadj>best.cadj)best=trial;}
+  }
   if(!best){document.getElementById('footHint').textContent='Optimiser: no valid squad with those locks.';return;}
   loadSquad(best.xi,best.bench);
   autoCaptain();
-  document.getElementById('footHint').textContent='Optimised'+(DIFF_MODE?' (differential)':'')+': XI xP '+best.xp.toFixed(1)+' over GW'+NEXT_GW+'–'+(NEXT_GW+5);
+  document.getElementById('footHint').textContent='Optimised'+(DIFF_MODE?' (differential)':'')+': captain-adjusted xP '+best.cadj.toFixed(1)+' over GW'+NEXT_GW+'–'+(NEXT_GW+5);
 }
 function loadSquad(xi,bench){
   const lockedIds=new Set(SQUAD.filter(s=>s.lock&&s.pid).map(s=>s.pid));
