@@ -46,6 +46,36 @@ Blend weights 45-70% are statistically indistinguishable (a plateau, not a spike
 so the squad builder is not driving the outcome. Raw run data in model/*.csv.
 
 
+## Risk presets and sliders
+Three tunable dials replace the old 3-way mode toggle, with five presets:
+
+| preset | risk | disruption | ceiling/floor | GW1-5 XI+C | avg own | Haaland |
+|---|---|---|---|---|---|---|
+| Default | 0 | 15% | balanced | 279 | 26.7% | out |
+| High risk | -0.85 | 6% | ceiling | 277 | 24.4% | out |
+| Low risk | +0.85 | 26% | floor | 278 | 29.3% | **in** |
+| Optimistic | -0.30 | 6% | ceiling | 277 | 24.7% | out |
+| Safe | +1.00 | 38% | floor | 275 | 29.1% | **in** |
+
+All five produce distinct squads (verified 5/5 unique).
+
+- **Risk preference**: ownership weighting. Negative chases rank via differentials,
+  positive protects it via template assets.
+- **Disruption probability**: how hard to discount players whose minutes are not
+  nailed (`1 - d*(1-nailedness)`, nailedness from last season's starts). Also raises
+  the bench weight, since a likelier blank makes autosubs matter more.
+- **Ceiling vs floor**: tilts between the volatile attacking component of a player's
+  per-90 (goals/assists) and the stable one (appearance, DefCon, clean sheets).
+
+## Scale calibration
+Projections are on a realistic scale, cross-checked externally: league-wide GW1
+total 883 (a real gameweek is ~890), season 33.6k (~33.8k), and an optimal XI+captain
+projects **289 over GW1-5** against a public benchmark of 290-320 with weekly
+transfers. An earlier variance-shrinkage step (lambda=0.60) minimised RMSE but
+compressed the top of the distribution badly (that same squad read 213) - reverted.
+RMSE-optimal and realistically-scaled are not the same thing, and for a tool people
+read the numbers off, scale wins.
+
 ## Alternative squads + hard constraints (ideas from lazyFPL)
 Inspired by janbjorge/lazyFPL, which converged on the same architecture
 (vaastav data -> ML model -> constrained optimiser -> transfer module -> backtest).
