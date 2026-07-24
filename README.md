@@ -46,6 +46,18 @@ Blend weights 45-70% are statistically indistinguishable (a plateau, not a spike
 so the squad builder is not driving the outcome. Raw run data in model/*.csv.
 
 
+## Where the remaining accuracy actually is
+Feature expansion was tested honestly: adding 13 new rolling features to the
+in-season model moved RMSE 2.640 -> 2.630 (R2 +0.137 -> +0.143). Almost nothing.
+Four cheap features (ict, ownership, transfer balance, start rate) capture most
+of that and win 6/6 rolling-origin windows -> shipped in api/projections.py.
+
+The top feature by a distance is **minutes** (importance 0.249). The oracle study
+says knowing exactly who plays is worth +0.249 RMSE - more than every feature
+we added combined. Conclusion: further gains do NOT come from more feature
+engineering on FPL data. They come from information the FPL API does not contain:
+predicted lineups, press-conference injury news, and rotation intent.
+
 ## How far from the achievable ceiling? (oracle study)
 An oracle knowing each player's TRUE season rate but nothing week-to-week is the
 best any preseason model could ever be. Same sample, 25/26:

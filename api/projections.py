@@ -8,7 +8,9 @@ def fetch(url):
     return json.loads(urllib.request.urlopen(req,timeout=20).read())
 
 def load_model():
-    path=os.path.join(os.path.dirname(__file__),'..','model','model_export.json')
+    # CHEAP+4 in-season model: validated 6/6 rolling-origin windows,
+    # RMSE 2.633 / R2 +0.141 (perfect-deadline band is 2.7-2.9 / 0.12-0.17)
+    path=os.path.join(os.path.dirname(__file__),'..','model','inseason_export.json')
     return json.load(open(path))
 
 class handler(BaseHTTPRequestHandler):
@@ -54,7 +56,11 @@ class handler(BaseHTTPRequestHandler):
                        'ppg':float(e.get('points_per_game') or 0),
                        'xgi4':float(e.get('expected_goal_involvements') or 0)/gp,
                        'price':e['now_cost']/10,'home':home,
-                       'team_gf6':tgf,'team_ga6':tga,'opp_gf6':ogf,'opp_ga6':oga,
+                       'ict4':float(e.get('ict_index') or 0)/gp,
+                       'sel_own':float(e.get('selected_by_percent') or 0)*10000,
+                       'tbal':float((e.get('transfers_in_event') or 0)-(e.get('transfers_out_event') or 0)),
+                       'start4':float(e.get('starts') or 0)/gp,
+                       't_gf6':tgf,'t_ga6':tga,'o_gf6':ogf,'o_ga6':oga,
                        'pos_GK':1 if pos=='GK' else 0,'pos_DEF':1 if pos=='DEF' else 0,
                        'pos_MID':1 if pos=='MID' else 0,'pos_FWD':1 if pos=='FWD' else 0}
                 xp=M['intercept']+sum(C[f]*feats[f] for f in FE)
