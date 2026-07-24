@@ -171,6 +171,7 @@
       <button class="toolbtn" onclick="autoCaptain()">Ⓒ Best captain</button>
       <button class="toolbtn" style="border-color:var(--red);color:var(--red);flex:.6" onclick="clearAll()">✕ Clear</button>
       <button class="toolbtn" id="diffBtn" style="flex:.8" onclick="toggleDiff()">Ⓣ Template</button>
+      <button class="toolbtn" id="benchBtn" style="flex:.9;color:var(--lime)" onclick="toggleBench()">Bench: covered</button>
     </div>
     <div class="pitch" id="pitch"></div>
     <div class="bench-label">— BENCH · 1ST SUB FIRST —</div>
@@ -263,7 +264,9 @@ function clearAll(){SQUAD=TEMPLATE.map(([pos,xi])=>({pid:null,pos,xi,lock:false}
 const FORMS=[[3,4,3],[3,5,2],[4,4,2],[4,3,3],[4,5,1],[5,4,1],[5,3,2]];
 function runOptimise(g0,n,lockedSlots){
   const pool=DB.filter(p=>hxp(p,g0,n)>0&&!['i','u','n'].includes(p.st));
-  const cheap=pos=>pool.filter(p=>p.pos===pos).sort((a,b)=>a.p-b.p||hxp(b,g0,n)-hxp(a,g0,n));
+  const cheap=pos=>pool.filter(p=>p.pos===pos).sort((a,b)=>
+    BENCH_W>0 ? (b.p<=4.6?hxp(b,g0,n):-1)-(a.p<=4.6?hxp(a,g0,n):-1) || a.p-b.p
+              : a.p-b.p||hxp(b,g0,n)-hxp(a,g0,n));
   let best=null;
   for(const [nd,nm,nf] of FORMS){
     const need={GK:1,DEF:nd,MID:nm,FWD:nf};
@@ -325,12 +328,27 @@ function runOptimise(g0,n,lockedSlots){
       if(bu){const old=xi[bu.i];clubs[old.t]--;used.delete(old.id);
         xi[bu.i]=bu.c;used.add(bu.c.id);clubs[bu.c.t]=(clubs[bu.c.t]||0)+1;imp=true;}
     }
-    const sc=xi.reduce((a,p)=>a+score(p,g0,n),0);
-    if(!best||sc>best.sc)best={sc,xp:xi.reduce((a,p)=>a+hxp(p,g0,n),0),xi:[...xi],bench:[...bench]};
+    const benchScore=BENCH_W*bench.reduce((a,p)=>a+score(p,g0,n),0);
+    const sc=xi.reduce((a,p)=>a+score(p,g0,n),0)+benchScore;
+    if(!best||sc>best.sc)best={sc,xp:xi.reduce((a,p)=>a+hxp(p,g0,n),0),
+      benchXp:bench.reduce((a,p)=>a+hxp(p,g0,n),0),xi:[...xi],bench:[...bench]};
   }
   return best;
 }
 function capObj(xi,g0,n){let s=0,mx=0;xi.forEach(p=>{const v=hxp(p,g0,n);s+=v;if(v>mx)mx=v;});return s+mx;}
+// Bench is NOT worth zero: autosubs fire whenever a starter doesn't play (~20% of
+// GWs someone blanks), and a playable bench is injury insurance. BENCH_W weights
+// bench xP into the objective so the optimiser stops buying pure fodder.
+let BENCH_W=0.25;
+function toggleBench(){
+  BENCH_W = BENCH_W>0 ? 0 : 0.25;
+  const b=document.getElementById('benchBtn');
+  b.textContent = BENCH_W>0 ? 'Bench: covered' : 'Bench: minimal';
+  b.style.color = BENCH_W>0 ? 'var(--lime)' : 'var(--dim)';
+  document.getElementById('footHint').textContent = BENCH_W>0
+    ? 'Optimiser now values bench (autosub + injury cover) at 25%'
+    : 'Optimiser back to cheapest-possible bench (max XI spend)';
+}
 function optimise(){
   // multi-seed + captain-aware: free solve, then top-3 premiums force-seeded; keep the
   // captain-adjusted best (sum + best player doubled). Fixes greedy local optima that
@@ -811,7 +829,7 @@ async function rateTeam(){
   btn.disabled=true;btn.textContent='Analysing';
   renderModelStats();
   out.innerHTML='<div class="loading">Claude is rating your 15</div>';
-  const prompt=`You are an elite FPL analyst rating a squad for 2026/27.\n\n${SEASON_CONTEXT}\n\nUser squad JSON (with model xP): ${JSON.stringify(squadJSON())}\nTotal £${cost().toFixed(1)}m of £100.0m.\n\nRespond ONLY with raw JSON, no fences, exactly:\n{"score":<0-100>,"verdict":"<one punchy sentence>","subs":{"Value":<0-100>,"Fixtures":<0-100>,"Captaincy":<0-100>,"Structure":<0-100>,"Ceiling":<0-100>},"strengths":["..","..",".."],"risks":["..","..",".."],"moves":[{"out":"<exact squad name>","in":"<player name>","why":".."}]}\nBe decisive, honest, reference the model xP numbers and fixtures. Max 3 moves.`;
+  const prompt=`You are an elite FPL analyst rating a squad for 2026/27.\n\n${SEASON_CONTEXT}\n\nUser squad JSON (with model xP): ${JSON.stringify(squadJSON())}\nTotal £${cost().toFixed(1)}m of £100.0m.\n\nIMPORTANT CONTEXT ON HOW THIS SQUAD WAS BUILT:\nIt was produced by a validated optimiser that maximises captain-adjusted expected points subject to the £100m budget, 3-per-club, and legal formations. It already tested forcing each top premium (including Haaland) into the squad and kept whichever scored higher. So do NOT criticise a premium's absence unless you show the arithmetic: name who comes out, and compare the season xP gained against the xP lost elsewhere. "He has a high ceiling" or "armband authority" is not an argument the optimiser hasn't already priced. If a premium is only a few season points clear of a cheaper option, that favours the cheaper option, not the premium.\n\nThe optimiser genuinely does NOT model: (a) same-club correlation - players from one club blank together; (b) ownership/rank risk - being off-template amplifies swings; (c) price-change dynamics; (d) injury-news timing. Those are where your critique adds real value, so concentrate there.\n\nScoring: a squad at the optimiser's own optimum should score highly (85+) unless you can name a concrete, quantified flaw. Reserve low scores for squads that genuinely deviate from optimal.\n\nRespond ONLY with raw JSON, no fences, exactly:\n{"score":<0-100>,"verdict":"<one punchy sentence>","subs":{"Value":<0-100>,"Fixtures":<0-100>,"Captaincy":<0-100>,"Structure":<0-100>,"Ceiling":<0-100>},"strengths":["..","..",".."],"risks":["..","..",".."],"moves":[{"out":"<exact squad name>","in":"<player name>","why":".."}]}\nEvery risk must be one the optimiser cannot see, or must carry the xP arithmetic. Every move must state what it costs as well as what it gains. Max 3 moves; return an empty moves array if the squad is at its optimum.`;
   try{
     const data=await aiFetch({model:'claude-sonnet-4-6',max_tokens:1000,messages:[{role:'user',content:prompt}]});
     const text=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');

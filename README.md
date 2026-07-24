@@ -46,6 +46,25 @@ Blend weights 45-70% are statistically indistinguishable (a plateau, not a spike
 so the squad builder is not driving the outcome. Raw run data in model/*.csv.
 
 
+## Two known optimiser blind spots (and one fix)
+The AI Rating tab was criticising squads the optimiser itself produced. Root cause:
+they optimise different things, and the rating model had no idea the squad was
+machine-generated. Resolved two ways.
+
+**Fixed — bench value.** The objective scored bench players at zero, so the
+optimiser bought pure fodder. In real FPL autosubs fire whenever a starter doesn't
+play, and a playable bench is injury cover. Bench xP now enters the objective at
+25% (toggleable). Effect: bench xP6 46.6 -> 59.2 for 0.7 xP of XI strength.
+
+**Open — same-club correlation.** Players from one club blank together; the
+optimiser treats them as independent. Not yet modelled. Real covariance modelling
+is the next meaningful upgrade.
+
+**Rating prompt now states what the optimiser did and did not model**, and requires
+any "you're missing player X" claim to name who comes out and show the xP
+arithmetic. Vibes-based critique ("high ceiling", "armband authority") is explicitly
+ruled out, since the optimiser already tests forcing each premium in.
+
 ## Multi-week transfer planner
 Beam search over squad states (default 6-GW horizon, beam 14). Models the real
 rules: 1 free transfer per GW banked up to 5, -4 per extra transfer, GBP100m budget,
