@@ -46,6 +46,25 @@ Blend weights 45-70% are statistically indistinguishable (a plateau, not a spike
 so the squad builder is not driving the outcome. Raw run data in model/*.csv.
 
 
+## Multi-week transfer planner
+Beam search over squad states (default 6-GW horizon, beam 14). Models the real
+rules: 1 free transfer per GW banked up to 5, -4 per extra transfer, GBP100m budget,
+max 3 per club, legal formations, best XI + captain recomputed every gameweek.
+Reports the plan's total against a do-nothing baseline, so "hold" is a first-class
+answer rather than a fallback.
+
+Two guards, both added after headless testing exposed the failure:
+- **Noise floor**: a move must gain >=1.5 xP over 4 GWs (>=5.5 to justify a hit).
+  Without it the planner ping-ponged (A->B->A->C->A) chasing 0.0-0.3 xP "gains"
+  that sit far inside the model's own RMSE of 2.63, burning free transfers and
+  sell-on fees for nothing.
+- **No re-buys**: a player sold within the horizon cannot be bought back.
+
+Validated headless: 15-man squads, zero duplicate players, zero club violations,
+budget respected, results stable across beam widths 6/14/25, runs in ~35ms.
+Deadline data comes from the official events endpoint (deadlines are ~90 minutes
+before the first fixture of the gameweek).
+
 ## Where the remaining accuracy actually is
 Feature expansion was tested honestly: adding 13 new rolling features to the
 in-season model moved RMSE 2.640 -> 2.630 (R2 +0.137 -> +0.143). Almost nothing.
