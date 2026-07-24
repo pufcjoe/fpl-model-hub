@@ -170,7 +170,7 @@
       <button class="toolbtn" onclick="optimise()">⚡ Optimise (keeps 🔒)</button>
       <button class="toolbtn" onclick="autoCaptain()">Ⓒ Best captain</button>
       <button class="toolbtn" style="border-color:var(--red);color:var(--red);flex:.6" onclick="clearAll()">✕ Clear</button>
-      <button class="toolbtn" id="diffBtn" style="flex:.8" onclick="toggleDiff()">Ⓣ Template</button>
+      <button class="toolbtn" id="diffBtn" style="flex:.9;color:var(--ink)" onclick="toggleDiff()">● Points</button>
       <button class="toolbtn" id="benchBtn" style="flex:.9;color:var(--lime)" onclick="toggleBench()">Bench: covered</button>
     </div>
     <div class="pitch" id="pitch"></div>
@@ -232,7 +232,10 @@ CONTEXT.forEach(c=>{c.on=true;c.custom=false;});
 const byId = {}; DB.forEach(p=>{byId[p.id]=p;p.gw0=p.gw.slice();});
 const BUDGET = 100.0;
 const STATUS_FLAG = {i:'INJ',d:'DOUBT',s:'SUSP',u:'OUT',n:'N/A'};
-let NEXT_GW = 1, DIFF_MODE = false;
+let NEXT_GW = 1;
+// MODE: -1 differential (chase rank), 0 points (pure xP), +1 rank-safe (protect rank)
+let MODE = 0;
+const MODE_K = 0.9;   // risk-aversion dial, calibrated so the modes produce genuinely different squads
 const DEADLINES = [{"gw":1,"t":"2026-08-21T17:30:00Z"},{"gw":2,"t":"2026-08-28T17:30:00Z"},{"gw":3,"t":"2026-09-04T17:30:00Z"},{"gw":4,"t":"2026-09-12T12:30:00Z"},{"gw":5,"t":"2026-09-18T17:30:00Z"},{"gw":6,"t":"2026-10-10T12:30:00Z"},{"gw":7,"t":"2026-10-17T12:30:00Z"},{"gw":8,"t":"2026-10-24T12:30:00Z"},{"gw":9,"t":"2026-10-31T13:30:00Z"},{"gw":10,"t":"2026-11-07T13:30:00Z"},{"gw":11,"t":"2026-11-21T13:30:00Z"},{"gw":12,"t":"2026-11-28T13:30:00Z"},{"gw":13,"t":"2026-12-02T18:30:00Z"},{"gw":14,"t":"2026-12-05T13:30:00Z"},{"gw":15,"t":"2026-12-12T13:30:00Z"},{"gw":16,"t":"2026-12-19T13:30:00Z"},{"gw":17,"t":"2026-12-26T13:30:00Z"},{"gw":18,"t":"2026-12-30T18:30:00Z"},{"gw":19,"t":"2027-01-02T13:30:00Z"},{"gw":20,"t":"2027-01-06T18:30:00Z"},{"gw":21,"t":"2027-01-16T13:30:00Z"},{"gw":22,"t":"2027-01-23T13:30:00Z"},{"gw":23,"t":"2027-01-30T13:30:00Z"},{"gw":24,"t":"2027-02-06T13:30:00Z"},{"gw":25,"t":"2027-02-10T18:30:00Z"},{"gw":26,"t":"2027-02-20T13:30:00Z"},{"gw":27,"t":"2027-02-27T13:30:00Z"},{"gw":28,"t":"2027-03-03T18:30:00Z"},{"gw":29,"t":"2027-03-13T13:30:00Z"},{"gw":30,"t":"2027-03-20T13:30:00Z"},{"gw":31,"t":"2027-04-10T12:30:00Z"},{"gw":32,"t":"2027-04-17T12:30:00Z"},{"gw":33,"t":"2027-04-24T12:30:00Z"},{"gw":34,"t":"2027-05-01T12:30:00Z"},{"gw":35,"t":"2027-05-08T12:30:00Z"},{"gw":36,"t":"2027-05-15T12:30:00Z"},{"gw":37,"t":"2027-05-23T12:30:00Z"},{"gw":38,"t":"2027-05-30T13:30:00Z"}];
 function deadlineFor(gw){const d=DEADLINES.find(x=>x.gw===gw);return d?new Date(d.t):null;}
 function deadlineStr(gw){const d=deadlineFor(gw);if(!d)return '';
@@ -247,16 +250,30 @@ const TEMPLATE=[['GK',true],['DEF',true],['DEF',true],['DEF',true],['DEF',true],
   ['GK',false],['DEF',false],['MID',false],['FWD',false]];
 
 function hxp(p,g0,n){let s=0;for(let g=g0-1;g<Math.min(38,g0-1+n);g++)s+=p.gw[g];return s;}
-function score(p,g0,n){const base=hxp(p,g0,n);return DIFF_MODE?base*(1+0.35*(1-Math.min(99,p.sel)/100)):base;}
+// Rank is relative to the field, so ownership changes what a pick is worth:
+//  - owning a popular player REDUCES variance vs the field (protects rank)
+//  - owning a rare player INCREASES it (chases rank)
+// xP itself is unchanged; only the objective's weighting shifts.
+function score(p,g0,n){
+  const base=hxp(p,g0,n), own=Math.min(99,p.sel)/100;
+  if(MODE>0) return base*(1+MODE_K*own);        // rank-safe: reward template
+  if(MODE<0) return base*(1+MODE_K*(1-own));    // differential: reward rarity
+  return base;                                   // points: pure xP
+}
 function fixStr(p,n){return p.fix.slice(0,n).map(f=>f.o+(f.h==='H'?'':'*')).join(' ');}
 function cost(){return SQUAD.reduce((s,x)=>s+(x.pid?byId[x.pid].p:0),0);}
 function clubCount(ex){const c={};SQUAD.forEach((x,i)=>{if(i===ex||!x.pid)return;const t=byId[x.pid].t;c[t]=(c[t]||0)+1;});return c;}
 function xiXP(){return SQUAD.filter(s=>s.xi&&s.pid).reduce((a,s)=>a+hxp(byId[s.pid],NEXT_GW,6),0);}
 function filled(){return SQUAD.every(s=>s.pid);}
-function toggleDiff(){DIFF_MODE=!DIFF_MODE;
-  document.getElementById('diffBtn').textContent=DIFF_MODE?'Ⓓ Differential':'Ⓣ Template';
-  document.getElementById('diffBtn').style.color=DIFF_MODE?'var(--amber)':'var(--lime)';
-  document.getElementById('footHint').textContent=DIFF_MODE?'Optimiser now rewards low ownership (+35% weight)':'Optimiser back to pure expected points';}
+function toggleDiff(){
+  MODE = MODE===0 ? 1 : (MODE===1 ? -1 : 0);
+  const b=document.getElementById('diffBtn');
+  const cfg = MODE>0 ? ['\u25b2 Rank-safe','var(--lime)','Protecting rank: owning popular assets cuts your variance vs the field. Re-run Optimise.']
+            : MODE<0 ? ['\u25bc Differential','var(--amber)','Chasing rank: rewarding low-owned picks for upside. Re-run Optimise.']
+                     : ['\u25cf Points','var(--ink)','Pure expected points \u2014 ownership ignored. Re-run Optimise.'];
+  b.textContent=cfg[0]; b.style.color=cfg[1];
+  document.getElementById('footHint').textContent=cfg[2];
+}
 function clearAll(){SQUAD=TEMPLATE.map(([pos,xi])=>({pid:null,pos,xi,lock:false}));capId=null;viceId=null;render();
   document.getElementById('footHint').textContent='Squad cleared — build slot by slot, or hit Optimise to auto-fill';}
 
@@ -335,7 +352,7 @@ function runOptimise(g0,n,lockedSlots){
   }
   return best;
 }
-function capObj(xi,g0,n){let s=0,mx=0;xi.forEach(p=>{const v=hxp(p,g0,n);s+=v;if(v>mx)mx=v;});return s+mx;}
+function capObj(xi,g0,n){let s=0,mx=0;xi.forEach(p=>{const v=score(p,g0,n);s+=v;if(v>mx)mx=v;});return s+mx;}
 // Bench is NOT worth zero: autosubs fire whenever a starter doesn't play (~20% of
 // GWs someone blanks), and a playable bench is injury insurance. BENCH_W weights
 // bench xP into the objective so the optimiser stops buying pure fodder.
@@ -366,7 +383,7 @@ function optimise(){
   if(!best){document.getElementById('footHint').textContent='Optimiser: no valid squad with those locks.';return;}
   loadSquad(best.xi,best.bench);
   autoCaptain();
-  document.getElementById('footHint').textContent='Optimised'+(DIFF_MODE?' (differential)':'')+': captain-adjusted xP '+best.cadj.toFixed(1)+' over GW'+NEXT_GW+'–'+(NEXT_GW+5);
+  document.getElementById('footHint').textContent='Optimised'+(MODE>0?' (rank-safe)':MODE<0?' (differential)':'')+': captain-adjusted xP '+best.cadj.toFixed(1)+' over GW'+NEXT_GW+'–'+(NEXT_GW+5);
 }
 function loadSquad(xi,bench){
   const lockedIds=new Set(SQUAD.filter(s=>s.lock&&s.pid).map(s=>s.pid));
@@ -804,6 +821,15 @@ function squadJSON(){
     xp6:hxp(d,NEXT_GW,6),xp1:d.gw[NEXT_GW-1],owned:d.sel+'%',status:d.st,pens:!!d.pen,
     role:d.id===capId?'CAPTAIN':d.id===viceId?'VICE':''};});
 }
+// How much of the field's expected points sits in players you DON'T own.
+// This is the rank risk the points-objective cannot see.
+function missingOwn(){
+  const mine=new Set(SQUAD.filter(s=>s.pid).map(s=>s.pid));
+  let miss=0,tot=0;
+  DB.forEach(p=>{ const w=Math.min(99,p.sel)/100, v=hxp(p,NEXT_GW,6)*w;
+    tot+=v; if(!mine.has(p.id)) miss+=v; });
+  return tot>0?100*miss/tot:0;
+}
 function renderModelStats(){
   const xi=SQUAD.filter(s=>s.xi&&s.pid).map(s=>byId[s.pid]);
   if(!xi.length){document.getElementById('modelStats').innerHTML='';return;}
@@ -813,7 +839,8 @@ function renderModelStats(){
   document.getElementById('modelStats').innerHTML='<div class="cardsec"><h4 class="a">Model read (GW'+NEXT_GW+'–'+(NEXT_GW+5)+')</h4>'+
     '<div class="statline"><span>XI expected points</span><b>'+xp.toFixed(1)+'</b></div>'+
     '<div class="statline"><span>+ captain doubling</span><b>'+(xp+capBonus).toFixed(1)+'</b></div>'+
-    '<div class="statline"><span>Avg ownership (template risk)</span><b>'+ownAvg.toFixed(1)+'%</b></div>'+
+    '<div class="statline"><span>Effective ownership (template overlap)</span><b>'+ownAvg.toFixed(1)+'%</b></div>'+
+    '<div class="statline"><span>Field exposure you are missing</span><b>'+missingOwn().toFixed(1)+'% pts</b></div>'+
     '<div class="statline"><span>Squad cost</span><b>£'+cost().toFixed(1)+'m</b></div></div>';
 }
 const SEASON_CONTEXT=`FPL 2026/27 launched 23 July 2026. Official DB facts: Haaland MCI £15.5m (record), B.Fernandes MUN £12.0m (pens), Gabriel ARS £8.0m top defender. Salah left Liverpool; Guardiola left City. DefCon points exist. Promoted: Coventry, Hull, Ipswich. Model v4: per-player points decomposed into xG/xA-blended attacking pts/90, Poisson clean-sheet probability from team-strength ratings (squad xG attack, GK goals-conceded defence, blended 65/35 with official FDR), and fixture-insensitive other pts/90; minutes from per-GW averages blended with ownership+price market signal; full 38-GW per-player projections power the transfer radar and chip roadmap. Official set-piece notes: 1: Check back for additional notes soon | 2: Check back for additional notes soon | 3: Check back for additional notes soon | 4: Check back for additional notes soon | 5: Check back for additional notes soon | 6: Check back for additional notes soon | 7: Check back for additional notes soon | 8: Check back for additional notes soon | 9: Check back for additional notes soon | 10: Check back for additional notes soon | 11: Check back for additional notes soon | 12: Check back for additional notes soon | 13: Check back for additional notes soon | 14: Check back for additional notes soon | 15: Check back for additional notes soon | 16: Check back for additional notes soon | 17: Check back for additional notes soon | 18: Check back for additional notes soon | 19: Check back for additional notes soon | 20: Check back for additional notes soon
@@ -829,7 +856,7 @@ async function rateTeam(){
   btn.disabled=true;btn.textContent='Analysing';
   renderModelStats();
   out.innerHTML='<div class="loading">Claude is rating your 15</div>';
-  const prompt=`You are an elite FPL analyst rating a squad for 2026/27.\n\n${SEASON_CONTEXT}\n\nUser squad JSON (with model xP): ${JSON.stringify(squadJSON())}\nTotal £${cost().toFixed(1)}m of £100.0m.\n\nIMPORTANT CONTEXT ON HOW THIS SQUAD WAS BUILT:\nIt was produced by a validated optimiser that maximises captain-adjusted expected points subject to the £100m budget, 3-per-club, and legal formations. It already tested forcing each top premium (including Haaland) into the squad and kept whichever scored higher. So do NOT criticise a premium's absence unless you show the arithmetic: name who comes out, and compare the season xP gained against the xP lost elsewhere. "He has a high ceiling" or "armband authority" is not an argument the optimiser hasn't already priced. If a premium is only a few season points clear of a cheaper option, that favours the cheaper option, not the premium.\n\nThe optimiser genuinely does NOT model: (a) same-club correlation - players from one club blank together; (b) ownership/rank risk - being off-template amplifies swings; (c) price-change dynamics; (d) injury-news timing. Those are where your critique adds real value, so concentrate there.\n\nScoring: a squad at the optimiser's own optimum should score highly (85+) unless you can name a concrete, quantified flaw. Reserve low scores for squads that genuinely deviate from optimal.\n\nRespond ONLY with raw JSON, no fences, exactly:\n{"score":<0-100>,"verdict":"<one punchy sentence>","subs":{"Value":<0-100>,"Fixtures":<0-100>,"Captaincy":<0-100>,"Structure":<0-100>,"Ceiling":<0-100>},"strengths":["..","..",".."],"risks":["..","..",".."],"moves":[{"out":"<exact squad name>","in":"<player name>","why":".."}]}\nEvery risk must be one the optimiser cannot see, or must carry the xP arithmetic. Every move must state what it costs as well as what it gains. Max 3 moves; return an empty moves array if the squad is at its optimum.`;
+  const prompt=`You are an elite FPL analyst rating a squad for 2026/27.\n\n${SEASON_CONTEXT}\n\nUser squad JSON (with model xP): ${JSON.stringify(squadJSON())}\nTotal £${cost().toFixed(1)}m of £100.0m.\n\nIMPORTANT CONTEXT ON HOW THIS SQUAD WAS BUILT:\nIt was produced by a validated optimiser running in ${MODE>0?'RANK-SAFE mode (deliberately weighting toward highly-owned template assets to cut variance versus the field)':MODE<0?'DIFFERENTIAL mode (deliberately weighting toward low-owned picks to chase rank from behind)':'POINTS mode (pure expected points, ownership ignored)'}, subject to the £100m budget, 3-per-club, and legal formations. It already tested forcing each top premium (including Haaland) into the squad and kept whichever scored higher. So do NOT criticise a premium's absence unless you show the arithmetic: name who comes out, and compare the season xP gained against the xP lost elsewhere. "He has a high ceiling" or "armband authority" is not an argument the optimiser hasn't already priced. If a premium is only a few season points clear of a cheaper option, that favours the cheaper option, not the premium.\n\nThe optimiser genuinely does NOT model: (a) same-club correlation - players from one club blank together; (b) ownership/rank risk - being off-template amplifies swings; (c) price-change dynamics; (d) injury-news timing. Those are where your critique adds real value, so concentrate there.\n\nScoring: a squad at the optimiser's own optimum should score highly (85+) unless you can name a concrete, quantified flaw. Reserve low scores for squads that genuinely deviate from optimal.\n\nRespond ONLY with raw JSON, no fences, exactly:\n{"score":<0-100>,"verdict":"<one punchy sentence>","subs":{"Value":<0-100>,"Fixtures":<0-100>,"Captaincy":<0-100>,"Structure":<0-100>,"Ceiling":<0-100>},"strengths":["..","..",".."],"risks":["..","..",".."],"moves":[{"out":"<exact squad name>","in":"<player name>","why":".."}]}\nEvery risk must be one the optimiser cannot see, or must carry the xP arithmetic. Every move must state what it costs as well as what it gains. Max 3 moves; return an empty moves array if the squad is at its optimum.`;
   try{
     const data=await aiFetch({model:'claude-sonnet-4-6',max_tokens:1000,messages:[{role:'user',content:prompt}]});
     const text=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');

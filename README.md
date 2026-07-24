@@ -46,6 +46,35 @@ Blend weights 45-70% are statistically indistinguishable (a plateau, not a spike
 so the squad builder is not driving the outcome. Raw run data in model/*.csv.
 
 
+## Points vs Rank modes
+FPL is scored on points but *played* for rank, and those diverge when ownership is
+concentrated. One control cycles three objectives:
+
+| mode | objective | effect on the GW1 solve |
+|---|---|---|
+| Differential | reward low ownership | XI xP6 222.0, avg own 22.3%, no Haaland |
+| **Points** (default) | pure expected xP | XI xP6 225.0, avg own 26.7%, no Haaland |
+| Rank-safe | reward template assets | XI xP6 221.5, avg own 30.1%, **Haaland in** |
+
+The maths: rank is relative to the field, so owning a popular player cuts your
+variance against it while owning a rare one raises it. Score becomes
+`xP * (1 + k*ownership)` for rank-safe and `xP * (1 + k*(1-ownership))` for
+differential, k=0.9. This is a risk-aversion dial, not a derived optimum - it says
+how much expected points you will trade for rank stability.
+
+Haaland is the worked example. At 67.8% owned he is 3.5 xP of pure points *worse*
+than spreading the money, which is why Points mode leaves him out. In Rank-safe he
+comes straight in, because not owning a two-thirds-owned striker is the single
+biggest rank risk on the board. Both answers are correct for their question.
+
+A "field exposure you are missing" stat (share of ownership-weighted league xP
+sitting in players you do not own) makes the tradeoff visible: 71.6% in Points
+mode, 68.3% in Rank-safe, 75.7% in Differential.
+
+**Bug found while building this**: the multi-seed premium stage scored candidate
+squads with raw xP instead of the mode-weighted score, so mode silently had no
+effect on the final pick. Fixed - modes now propagate through seed selection.
+
 ## Two known optimiser blind spots (and one fix)
 The AI Rating tab was criticising squads the optimiser itself produced. Root cause:
 they optimise different things, and the rating model had no idea the squad was
