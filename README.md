@@ -46,6 +46,29 @@ Blend weights 45-70% are statistically indistinguishable (a plateau, not a spike
 so the squad builder is not driving the outcome. Raw run data in model/*.csv.
 
 
+## Alternative squads + hard constraints (ideas from lazyFPL)
+Inspired by janbjorge/lazyFPL, which converged on the same architecture
+(vaastav data -> ML model -> constrained optimiser -> transfer module -> backtest).
+
+**Top-5 alternative squads.** The optimiser now reports the best squad *and* the
+best squad built around each other premium, with the captain-adjusted xP cost of
+each choice, flagging gaps smaller than the model's own per-player RMSE (2.63) as
+coin-flips rather than decisions. GW1 in Points mode:
+
+| squad | capAdj xP | gap |
+|---|---|---|
+| with B.Fernandes | 249.1 | best |
+| with Semenyo | 247.9 | -1.2 (inside noise) |
+| with Haaland | 247.6 | -1.6 (inside noise) |
+| with Isak | 246.1 | -3.0 |
+| with Palmer | 243.7 | -5.4 |
+
+This reframes the Haaland debate honestly: he is not "wrong", he is 1.6 points of
+noise away from optimal over six gameweeks. One-click "Use" loads any alternative.
+
+**Exclude list** (`Never pick` in the player drawer) and a **minimum-minutes floor**
+for nailedness, both lazyFPL-style constraints.
+
 ## Points vs Rank modes
 FPL is scored on points but *played* for rank, and those diverge when ownership is
 concentrated. One control cycles three objectives:
